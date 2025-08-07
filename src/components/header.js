@@ -1,4 +1,4 @@
-export default function Header() {
+export default function Header({ onLoginClick }) {
   return (
     <header className="bg-black p-2">
       <div className="m-4 flex justify-between space-x-12 text-lg text-white">
@@ -20,7 +20,12 @@ export default function Header() {
           </div>
         </div>
         <div>
-          <div>Login</div>
+          <div 
+            className="cursor-pointer transition hover:font-bold hover:text-red-500"
+            onClick={onLoginClick}
+          >
+            Login
+          </div>
         </div>
       </div>
     </header>
