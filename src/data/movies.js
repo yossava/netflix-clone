@@ -6,7 +6,6 @@ export const getFeaturedMovie = async () => {
     const movie = await movieApi.getFeaturedMovie();
     return {
       ...movie,
-      logo: "/logos/stranger-things.png", // Keep logo for demo
       trailer: "https://www.youtube.com/watch?v=b9EkMc79ZSU"
     };
   } catch (error) {
@@ -16,7 +15,6 @@ export const getFeaturedMovie = async () => {
       title: "Stranger Things",
       description: "When a young boy vanishes, a small town uncovers a mystery involving secret experiments, terrifying supernatural forces, and one strange little girl.",
       backdrop: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=1920&h=1080&fit=crop",
-      logo: "/logos/stranger-things.png",
       trailer: "https://www.youtube.com/watch?v=b9EkMc79ZSU",
       year: 2016,
       rating: "TV-14",

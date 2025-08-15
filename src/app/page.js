@@ -20,7 +20,7 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Header onLoginClick={handleLoginClick} />
-      <div className="pt-20">
+      <div className="">
         <HeroSection />
         <MoviesSection />
       </div>
