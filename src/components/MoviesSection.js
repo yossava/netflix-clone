@@ -1,70 +1,121 @@
-import MovieCard from "./MovieCard";
+"use client";
 
-const MOVIES = [
-  {
-    id: 1,
-    title: "The Dark Knight",
-    image: "https://images.unsplash.com/photo-1754008178966-8244ca10bfce?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwyM3x8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 2,
-    title: "Inception",
-    image: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1925&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 3,
-    title: "Interstellar",
-    image: "https://images.unsplash.com/photo-1754410384911-47978d3e49ec?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwzMXx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 4,
-    title: "Blade Runner 2049",
-    image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?q=80&w=2059&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 5,
-    title: "Mad Max: Fury Road",
-    image: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 6,
-    title: "Dune",
-    image: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 7,
-    title: "The Matrix",
-    image: "https://images.unsplash.com/photo-1586953208448-b95a79798f07?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-  },
-  {
-    id: 8,
-    title: "Avatar",
-    image: "https://images.unsplash.com/photo-1754318099560-9d89d608d331?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw0OHx8fGVufDB8fHx8fA%3D%3D"
-  }
-];
+import { useState, useEffect } from 'react';
+import MovieCard from "./MovieCard";
+import { motion } from 'framer-motion';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export default function MoviesSection() {
+  const [movieCategories, setMovieCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMovies();
+  }, []);
+
+  const fetchMovies = async () => {
+    try {
+      const response = await fetch('/api/movies');
+      const data = await response.json();
+      setMovieCategories(data.categories);
+    } catch (error) {
+      console.error('Error fetching movies:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const MovieRow = ({ category, index }) => {
+    const [scrollPosition, setScrollPosition] = useState(0);
+    const [canScrollLeft, setCanScrollLeft] = useState(false);
+    const [canScrollRight, setCanScrollRight] = useState(true);
+    
+    const scrollContainer = (direction) => {
+      const container = document.getElementById(`scroll-${index}`);
+      const scrollAmount = 400;
+      const newPosition = direction === 'left' 
+        ? scrollPosition - scrollAmount 
+        : scrollPosition + scrollAmount;
+      
+      container.scrollTo({ left: newPosition, behavior: 'smooth' });
+      setScrollPosition(newPosition);
+      
+      setTimeout(() => {
+        setCanScrollLeft(newPosition > 0);
+        setCanScrollRight(newPosition < container.scrollWidth - container.clientWidth);
+      }, 300);
+    };
+
+    return (
+      <div className="mb-16">
+        <h3 className="text-2xl font-bold text-white mb-6 px-4">{category.title}</h3>
+        <div className="relative group">
+          {/* Left scroll button */}
+          {canScrollLeft && (
+            <button
+              onClick={() => scrollContainer('left')}
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-black/50 hover:bg-black/80 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </button>
+          )}
+          
+          {/* Right scroll button */}
+          {canScrollRight && (
+            <button
+              onClick={() => scrollContainer('right')}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 z-10 w-12 h-12 bg-black/50 hover:bg-black/80 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <ChevronRight className="w-6 h-6" />
+            </button>
+          )}
+          
+          {/* Movie cards container */}
+          <div
+            id={`scroll-${index}`}
+            className="flex space-x-4 overflow-x-auto scrollbar-hide px-4"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {category.movies.map((movie, movieIndex) => (
+              <motion.div
+                key={movie.id}
+                initial={{ opacity: 0, x: 50 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: movieIndex * 0.1 }}
+                className="flex-shrink-0"
+              >
+                <MovieCard movie={movie} size="medium" />
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) {
+    return (
+      <section className="py-16 bg-black">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-800 rounded w-48 mb-8"></div>
+            <div className="flex space-x-4">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="w-48 h-72 bg-gray-800 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
-    <section className="py-16 sm:py-24 bg-gray-900">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-12">
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white mb-4">
-            Popular Movies
-          </h2>
-          <p className="text-xl text-gray-300">
-            Discover the most watched movies this week
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
-          {MOVIES.map((movie) => (
-            <MovieCard
-              key={movie.id}
-              title={movie.title}
-              image={movie.image}
-            />
-          ))}
-        </div>
+    <section className="py-16 bg-black">
+      <div className="max-w-7xl mx-auto">
+        {movieCategories.map((category, index) => (
+          <MovieRow key={index} category={category} index={index} />
+        ))}
       </div>
     </section>
   );

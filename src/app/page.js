@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import Header from "@/components/header";
 import HeroSection from "@/components/HeroSection";
-import MoviesSection from "@/components/MoviesSection";
-import FeaturesSection from "@/components/FeaturesSection";
 import LoginModal from "@/components/LoginModal";
+import MoviesSection from "@/components/MoviesSection";
+import { useState } from "react";
 
 export default function Home() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -21,9 +20,10 @@ export default function Home() {
   return (
     <div className="min-h-screen">
       <Header onLoginClick={handleLoginClick} />
-      <HeroSection />
-      <MoviesSection />
-      <FeaturesSection />
+      <div className="pt-20">
+        <HeroSection />
+        <MoviesSection />
+      </div>
       <LoginModal isOpen={isLoginModalOpen} onClose={handleCloseModal} />
     </div>
   );
