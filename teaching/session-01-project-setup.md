@@ -67,6 +67,10 @@ npx create-next-app@latest netflix-clone
 # ✅ Yes to `src/` directory? → YES
 # ✅ Yes to App Router? → YES
 # ✅ No to import alias? → NO (use default)
+
+# After project creation, install additional dependencies needed for the course
+cd netflix-clone
+npm install framer-motion lucide-react
 ```
 
 **Teacher Demonstration:**

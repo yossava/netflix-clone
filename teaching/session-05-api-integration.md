@@ -324,9 +324,12 @@ export const getFeaturedMovie = async () => {
 // Movie categories - will be fetched from API
 export const getMovieCategories = async () => {
   try {
-    const [trending, popular] = await Promise.all([
+    const [trending, popular, topRated, actionMovies, comedies] = await Promise.all([
       movieApi.getTrendingMovies(),
-      movieApi.getPopularMovies()
+      movieApi.getPopularMovies(),
+      movieApi.getTopRatedMovies(),
+      movieApi.getMoviesByGenre('Action'), // Action genre
+      movieApi.getMoviesByGenre('Comedy')  // Comedy genre
     ]);
 
     return [
@@ -335,16 +338,29 @@ export const getMovieCategories = async () => {
         movies: trending.slice(0, 20)
       },
       {
-        title: "Popular on Netflix", 
+        title: "Popular on Netflix",
         movies: popular.slice(0, 20)
       },
       {
+        title: "Top Rated",
+        movies: topRated.slice(0, 20)
+      },
+      {
+        title: "Action & Adventure",
+        movies: actionMovies.slice(0, 20)
+      },
+      {
+        title: "Comedies",
+        movies: comedies.slice(0, 20)
+      },
+      {
         title: "Netflix Originals",
-        movies: trending.slice(5, 25) // Use different slice for variety
+        movies: trending.slice(5, 25) // Use different slice of trending for variety
       }
     ];
   } catch (error) {
     console.error('Error fetching movie categories:', error);
+    // Return fallback data if API fails
     return [
       {
         title: "Trending Now",
@@ -352,6 +368,14 @@ export const getMovieCategories = async () => {
       },
       {
         title: "Popular on Netflix",
+        movies: movieApi.generateFallbackMovies(20)
+      },
+      {
+        title: "Action & Adventure",
+        movies: movieApi.generateFallbackMovies(20)
+      },
+      {
+        title: "Comedies",
         movies: movieApi.generateFallbackMovies(20)
       }
     ];
@@ -379,7 +403,55 @@ export const searchMovies = async (query) => {
 ```javascript
 // Add these methods to the MovieApiService class
 
-// Get featured movie (first trending movie)
+async getTopRatedMovies() {
+  console.log('🏆 Getting top rated movies...');
+  try {
+    const data = await this.fetchFromIMDB('/titles', {
+      limit: 50
+    });
+    if (data?.titles) {
+      // Filter for highly rated movies
+      const topRated = data.titles
+        .filter(movie => movie.type === 'movie' && movie.rating?.aggregateRating >= 8.5)
+        .sort((a, b) => (b.rating?.aggregateRating || 0) - (a.rating?.aggregateRating || 0))
+        .slice(0, 20);
+      console.log('✅ Top rated movies from API:', topRated.length);
+      return topRated.map(movie => this.formatMovie(movie));
+    }
+  } catch (error) {
+    console.log('⚠️  Top rated movies fallback:', error?.message);
+  }
+  
+  console.log('📝 Using fallback top rated movies (20 items)');
+  return this.generateFallbackMovies(20);
+}
+
+async getMoviesByGenre(genre) {
+  console.log(`🎭 Getting ${genre} movies...`);
+  try {
+    const data = await this.fetchFromIMDB('/titles', {
+      limit: 100
+    });
+    if (data?.titles) {
+      // Filter movies by genre (case-insensitive)
+      const genreMovies = data.titles
+        .filter(movie => 
+          movie.type === 'movie' && 
+          movie.genres && 
+          movie.genres.some(g => g.toLowerCase().includes(genre.toLowerCase()))
+        )
+        .slice(0, 20);
+      console.log(`✅ ${genre} movies from API:`, genreMovies.length);
+      return genreMovies.map(movie => this.formatMovie(movie));
+    }
+  } catch (error) {
+    console.log(`⚠️  ${genre} movies fallback:`, error?.message);
+  }
+  
+  console.log(`📝 Using fallback ${genre} movies (20 items)`);
+  return this.generateFallbackMovies(20);
+}
+
 async getFeaturedMovie() {
   console.log('🎯 Getting featured movie...');
   try {
@@ -393,7 +465,6 @@ async getFeaturedMovie() {
   }
 }
 
-// Search movies
 async searchMovies(query) {
   console.log('🔍 Searching movies for:', query);
   try {
@@ -401,6 +472,7 @@ async searchMovies(query) {
       limit: 100
     });
     if (data?.titles) {
+      // Search in title and plot
       const results = data.titles
         .filter(movie => 
           movie.type === 'movie' &&
@@ -417,6 +489,7 @@ async searchMovies(query) {
   }
   
   console.log('📝 Using fallback search in generated movies');
+  // Simple search in fallback data
   const allMovies = this.generateFallbackMovies(50);
   const results = allMovies.filter(movie => 
     movie.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -425,57 +498,79 @@ async searchMovies(query) {
   console.log('📝 Fallback search found:', results.length, 'matches');
   return results;
 }
-```
 
-#### Step 6: Convert Home Page to Async Data Loading
-**Students update:** `src/app/page.js`
-
-```javascript
-import Header from '@/components/header'
-import HeroSection from '@/components/HeroSection'
-import MoviesSection from '@/components/MoviesSection'
-import { getMovieCategories } from '@/data/movies'
-
-// This is now a Server Component that fetches data
-export default async function Home() {
-  const handlePlay = (movie) => {
-    console.log(`Playing: ${movie.title}`)
+async getMovieDetails(id) {
+  console.log('🎯 Getting movie details for:', id);
+  try {
+    // Try to find the movie in the titles list first
+    const data = await this.fetchFromIMDB('/titles', {
+      limit: 100
+    });
+    if (data?.titles) {
+      const movie = data.titles.find(m => m.id === id);
+      if (movie) {
+        console.log('✅ Found movie details from API');
+        return this.formatMovie(movie);
+      }
+    }
+  } catch (error) {
+    console.log('⚠️  Movie details fallback:', error?.message);
   }
-
-  const handleMoreInfo = (movie) => {
-    console.log(`More info for: ${movie.title}`)
-  }
-
-  // Fetch movie categories on server
-  const movieCategories = await getMovieCategories()
-
-  return (
-    <div className="min-h-screen bg-netflix-black text-white">
-      <Header />
-      <HeroSection />
-      
-      {/* Movie Sections */}
-      <div className="space-y-8 pb-16">
-        {movieCategories.map((category, index) => (
-          <MoviesSection 
-            key={category.title}
-            title={category.title}
-            movies={category.movies}
-            onPlay={handlePlay}
-            onMoreInfo={handleMoreInfo}
-          />
-        ))}
-      </div>
-    </div>
-  )
+  
+  console.log('📝 Using fallback movie details');
+  // Return a detailed fallback movie
+  return this.generateFallbackMovies(1)[0];
 }
 ```
 
-**Teacher explains Server Components:**
-- Page.js is a Server Component by default
-- Can use async/await directly in component
-- Data fetching happens on server
-- Reduces client-side JavaScript
+#### Step 6: Update Home Page (Already Implemented)
+**The current `src/app/page.js` already has the correct structure:**
+
+```javascript
+"use client";
+
+import Header from "@/components/header";
+import HeroSection from "@/components/HeroSection";
+import LoginModal from "@/components/LoginModal";
+import MoviesSection from "@/components/MoviesSection";
+import { useState } from "react";
+
+export default function Home() {
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  const handleLoginClick = () => {
+    setIsLoginModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsLoginModalOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen">
+      <Header onLoginClick={handleLoginClick} />
+      <div className="">
+        <HeroSection />
+        <MoviesSection />
+      </div>
+      <LoginModal isOpen={isLoginModalOpen} onClose={handleCloseModal} />
+    </div>
+  );
+}
+```
+
+**Key differences from documentation:**
+- Uses client-side components with "use client"
+- Includes LoginModal state management
+- MoviesSection handles its own data fetching
+- Simpler structure focusing on component composition
+```
+
+**Teacher explains the current architecture:**
+- Components use "use client" for interactivity
+- Data fetching happens in individual components
+- Each component manages its own loading states
+- Modal state is managed at the page level
 
 ### Activity 3: Add Loading States & Error Handling (25 minutes)
 
@@ -515,157 +610,31 @@ export default function MovieCardSkeleton() {
 }
 ```
 
-#### Step 9: Create Client-Side Data Fetching Hook
-**Students create:** `src/hooks/useMovies.js`
+#### Step 9: Review Existing Component Architecture
+**The current implementation already includes the data fetching patterns we need:**
 
-```javascript
-'use client'
+1. **MoviesSection Component** (`src/components/MoviesSection.js`)
+   - Handles its own data fetching with `useEffect`
+   - Includes loading states and error handling
+   - Fetches from `/api/movies` endpoint
+   - Displays movie categories with proper loading skeletons
 
-import { useState, useEffect } from 'react'
-import { getMovieCategories } from '@/data/movies'
+2. **HeroSection Component** (`src/components/HeroSection.js`)
+   - Fetches featured movie data independently
+   - Shows loading spinner while fetching
+   - Handles API errors gracefully
+   - Integrates with authentication for watchlist features
 
-export function useMovies() {
-  const [movieCategories, setMovieCategories] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState(null)
+3. **Current Data Flow:**
+   ```
+   Page Component → Individual Components → API Routes → movieApi Service
+   ```
 
-  useEffect(() => {
-    const fetchMovies = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        const categories = await getMovieCategories()
-        setMovieCategories(categories)
-        
-      } catch (err) {
-        console.error('Error fetching movies:', err)
-        setError('Failed to load movies. Please try again.')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchMovies()
-  }, [])
-
-  const refetch = () => {
-    const fetchMovies = async () => {
-      try {
-        setIsLoading(true)
-        setError(null)
-        
-        const categories = await getMovieCategories()
-        setMovieCategories(categories)
-        
-      } catch (err) {
-        console.error('Error fetching movies:', err)
-        setError('Failed to load movies. Please try again.')
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchMovies()
-  }
-
-  return {
-    movieCategories,
-    isLoading,
-    error,
-    refetch
-  }
-}
-```
-
-#### Step 10: Create Client Component for Movies
-**Students create:** `src/components/MoviesContainer.js`
-
-```javascript
-'use client'
-
-import { useMovies } from '@/hooks/useMovies'
-import MoviesSection from './MoviesSection'
-import MovieCardSkeleton from './MovieCardSkeleton'
-import LoadingSpinner from './LoadingSpinner'
-
-export default function MoviesContainer() {
-  const { movieCategories, isLoading, error, refetch } = useMovies()
-
-  const handlePlay = (movie) => {
-    console.log(`Playing: ${movie.title}`)
-  }
-
-  const handleMoreInfo = (movie) => {
-    console.log(`More info for: ${movie.title}`)
-  }
-
-  if (error) {
-    return (
-      <div className="text-center py-16">
-        <p className="text-red-500 mb-4">{error}</p>
-        <button 
-          onClick={refetch}
-          className="bg-netflix-red hover:bg-red-700 text-white px-6 py-2 rounded font-semibold transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <div className="space-y-8 pb-16">
-        {/* Loading skeletons */}
-        {[1, 2, 3].map((section) => (
-          <section key={section} className="px-4 md:px-8 lg:px-16 py-8">
-            <div className="h-6 bg-gray-700 rounded w-48 mb-4 animate-pulse"></div>
-            <div className="flex space-x-4 overflow-hidden">
-              {[1, 2, 3, 4, 5].map((card) => (
-                <MovieCardSkeleton key={card} />
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-8 pb-16">
-      {movieCategories.map((category, index) => (
-        <MoviesSection 
-          key={category.title}
-          title={category.title}
-          movies={category.movies}
-          onPlay={handlePlay}
-          onMoreInfo={handleMoreInfo}
-        />
-      ))}
-    </div>
-  )
-}
-```
-
-#### Step 11: Update Home Page to Use Client Container
-**Students update:** `src/app/page.js`
-
-```javascript
-import Header from '@/components/header'
-import HeroSection from '@/components/HeroSection'
-import MoviesContainer from '@/components/MoviesContainer'
-
-export default function Home() {
-  return (
-    <div className="min-h-screen bg-netflix-black text-white">
-      <Header />
-      <HeroSection />
-      <MoviesContainer />
-    </div>
-  )
-}
-```
+**Key benefits of this architecture:**
+- Components are self-contained and reusable
+- Each component manages its own loading state
+- Error handling is localized to each component
+- No complex state management needed at page level
 
 ### Activity 4: Test API Integration & Add Caching (20 minutes)
 
@@ -699,90 +668,30 @@ export default function Home() {
 | Slow loading | Network issues | Loading states should show |
 | Images not loading | Invalid image URLs | Check image URL in formatMovie |
 
-#### Step 13: Add Simple Caching
-**Students update `src/lib/movieApi.js` to add caching:**
+#### Step 13: Review API Service Structure
+**The current `src/lib/movieApi.js` provides:**
 
-```javascript
-class MovieApiService {
-  constructor() {
-    this.baseUrl = 'https://api.imdbapi.dev';
-    this.cache = new Map(); // Simple in-memory cache
-    this.cacheTimeout = 5 * 60 * 1000; // 5 minutes
-  }
+1. **Comprehensive fallback system**
+   - Generates realistic movie data when API fails
+   - Maintains app functionality even without internet
 
-  // Add cache key generation
-  getCacheKey(endpoint, params) {
-    return `${endpoint}:${JSON.stringify(params)}`;
-  }
+2. **Multiple API methods**
+   - `getTrendingMovies()` - Popular current movies
+   - `getPopularMovies()` - Highly rated movies  
+   - `getTopRatedMovies()` - Best rated content
+   - `getMoviesByGenre()` - Genre-specific content
+   - `searchMovies()` - Search functionality
+   - `getFeaturedMovie()` - Hero section content
 
-  // Check if cached data is still valid
-  isCacheValid(cacheEntry) {
-    return Date.now() - cacheEntry.timestamp < this.cacheTimeout;
-  }
+3. **Error handling patterns**
+   - Try-catch blocks for network issues
+   - Console logging for debugging
+   - Graceful degradation to fallback data
 
-  // Updated fetch method with caching
-  async fetchFromIMDB(endpoint, params = {}) {
-    const cacheKey = this.getCacheKey(endpoint, params);
-    
-    // Check cache first
-    if (this.cache.has(cacheKey)) {
-      const cacheEntry = this.cache.get(cacheKey);
-      if (this.isCacheValid(cacheEntry)) {
-        console.log('📦 Using cached data for:', endpoint);
-        return cacheEntry.data;
-      } else {
-        console.log('⏰ Cache expired for:', endpoint);
-        this.cache.delete(cacheKey);
-      }
-    }
-
-    const queryParams = new URLSearchParams(params);
-    const url = `${this.baseUrl}${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    
-    console.log('🎬 IMDB API Call:', { endpoint, params, fullUrl: url });
-    
-    try {
-      const response = await fetch(url, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status} - ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      
-      // Cache the successful response
-      this.cache.set(cacheKey, {
-        data,
-        timestamp: Date.now()
-      });
-      
-      console.log('✅ IMDB API Success (cached):', {
-        titleCount: data?.titles?.length || 0
-      });
-      
-      return data;
-      
-    } catch (error) {
-      console.error('🚨 IMDB API Error:', error.message);
-      return null;
-    }
-  }
-
-  // Add cache clearing method
-  clearCache() {
-    this.cache.clear();
-    console.log('🗑️ Cache cleared');
-  }
-}
-```
-
-**Teacher explains caching benefits:**
-- Reduces API calls and improves performance
-- Better user experience with faster loading
-- Reduces server load
-- Simple Map-based cache for demo purposes
+4. **Data transformation**
+   - Converts API responses to consistent format
+   - Handles missing or incomplete data
+   - Provides realistic placeholder content
 
 ### Activity 5: Session Review & Next Steps (10 minutes)
 

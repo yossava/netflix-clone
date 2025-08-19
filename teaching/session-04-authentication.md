@@ -83,106 +83,118 @@ export function useAuth() {
 
 // Provider component
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [watchlist, setWatchlist] = useState([]);
 
-  // Load user from localStorage on app start
   useEffect(() => {
-    const savedUser = localStorage.getItem('netflix_user')
-    if (savedUser) {
+    // Check for stored auth data
+    if (typeof window !== 'undefined') {
       try {
-        const userData = JSON.parse(savedUser)
-        setUser(userData)
-        setIsAuthenticated(true)
+        const storedUser = localStorage.getItem('netflix_user');
+        const storedWatchlist = localStorage.getItem('netflix_watchlist');
+        
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+        }
+        
+        if (storedWatchlist) {
+          const watchlistData = JSON.parse(storedWatchlist);
+          setWatchlist(watchlistData);
+        }
       } catch (error) {
-        console.error('Error parsing user data:', error)
-        localStorage.removeItem('netflix_user')
+        console.error('Error parsing stored data:', error);
+        // Clear corrupted data
+        localStorage.removeItem('netflix_user');
+        localStorage.removeItem('netflix_watchlist');
       }
     }
-    setIsLoading(false)
-  }, [])
+    
+    setLoading(false);
+  }, []);
 
-  // Login function
   const login = async (email, password) => {
-    setIsLoading(true)
-    
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Mock login - in real app, this would call an API
+      const mockUser = {
+        id: 1,
+        name: 'John Doe',
+        email: email,
+        avatar: '/avatars/avatar1.png',
+        plan: 'Premium'
+      };
       
-      // Simple validation (in real app, this would be API call)
-      if (email && password.length >= 6) {
-        const userData = {
-          id: Date.now(),
-          email: email,
-          name: email.split('@')[0],
-          avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face`
-        }
-        
-        setUser(userData)
-        setIsAuthenticated(true)
-        localStorage.setItem('netflix_user', JSON.stringify(userData))
-        
-        return { success: true }
-      } else {
-        return { success: false, error: 'Invalid email or password' }
+      setUser(mockUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('netflix_user', JSON.stringify(mockUser));
       }
+      return { success: true };
     } catch (error) {
-      return { success: false, error: 'Login failed. Please try again.' }
-    } finally {
-      setIsLoading(false)
+      return { success: false, error: 'Invalid credentials' };
     }
-  }
+  };
 
-  // Logout function
   const logout = () => {
-    setUser(null)
-    setIsAuthenticated(false)
-    localStorage.removeItem('netflix_user')
-  }
-
-  // Sign up function
-  const signup = async (email, password, confirmPassword) => {
-    setIsLoading(true)
-    
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      if (password !== confirmPassword) {
-        return { success: false, error: 'Passwords do not match' }
-      }
-      
-      if (email && password.length >= 6) {
-        const userData = {
-          id: Date.now(),
-          email: email,
-          name: email.split('@')[0],
-          avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&h=150&fit=crop&crop=face`
-        }
-        
-        setUser(userData)
-        setIsAuthenticated(true)
-        localStorage.setItem('netflix_user', JSON.stringify(userData))
-        
-        return { success: true }
-      } else {
-        return { success: false, error: 'Please provide valid email and password (min 6 characters)' }
-      }
-    } catch (error) {
-      return { success: false, error: 'Signup failed. Please try again.' }
-    } finally {
-      setIsLoading(false)
+    setUser(null);
+    setWatchlist([]);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('netflix_user');
+      localStorage.removeItem('netflix_watchlist');
     }
-  }
+  };
+
+  const signup = async (name, email, password) => {
+    try {
+      // Mock signup
+      const mockUser = {
+        id: Date.now(),
+        name: name,
+        email: email,
+        avatar: '/avatars/avatar1.png',
+        plan: 'Basic'
+      };
+      
+      setUser(mockUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('netflix_user', JSON.stringify(mockUser));
+      }
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Signup failed' };
+    }
+  };
+
+  const addToWatchlist = (movie) => {
+    const newWatchlist = [...watchlist, movie];
+    setWatchlist(newWatchlist);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('netflix_watchlist', JSON.stringify(newWatchlist));
+    }
+  };
+
+  const removeFromWatchlist = (movieId) => {
+    const newWatchlist = watchlist.filter(movie => movie.id !== movieId);
+    setWatchlist(newWatchlist);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('netflix_watchlist', JSON.stringify(newWatchlist));
+    }
+  };
+
+  const isInWatchlist = (movieId) => {
+    return watchlist.some(movie => movie.id === movieId);
+  };
 
   const value = {
     user,
-    isAuthenticated,
-    isLoading,
+    loading,
+    watchlist,
     login,
+    signup,
     logout,
-    signup
+    addToWatchlist,
+    removeFromWatchlist,
+    isInWatchlist
   }
 
   return (
@@ -438,74 +450,31 @@ export default function LoginModal({ isOpen, onClose }) {
    - Error clearing on input change
    - Toggle between login/signup modes
 
-#### Step 5: Add Modal State to Header
-**Students update `src/components/header.js`:**
+#### Step 5: Note About Header Component
+**The header component already exists and is more advanced than what we'll build in this session. It includes:**
+- Mobile responsive navigation
+- Search functionality 
+- Profile dropdown menu
+- Framer Motion animations
 
-```javascript
-'use client'
+**For this session, we'll focus on the authentication integration. The existing header at `src/components/header.js` already includes:**
+- User state from AuthContext
+- Login/logout functionality
+- Profile display when authenticated
+- Mobile menu with responsive design
 
-import { useState } from 'react'
-import { useAuth } from '@/context/AuthContext'
-import LoginModal from './LoginModal'
+**Key features the current header provides:**
+- `const { user, logout } = useAuth()` - Gets auth state
+- Conditional rendering based on `user` state
+- Profile dropdown with user information
+- Mobile-first responsive design
+- Search integration (for future sessions)
 
-export default function Header() {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  const { user, isAuthenticated, logout } = useAuth()
-
-  return (
-    <>
-      <header className="bg-netflix-black p-4 sticky top-0 z-40 border-b border-gray-800">
-        <div className="flex items-center justify-between">
-          <h1 className="text-netflix-red text-2xl font-bold">
-            NETFLIX
-          </h1>
-          
-          <nav className="hidden md:flex space-x-6">
-            <a href="#" className="text-white hover:text-gray-300 transition-colors">Home</a>
-            <a href="#" className="text-white hover:text-gray-300 transition-colors">Movies</a>
-            <a href="#" className="text-white hover:text-gray-300 transition-colors">TV Shows</a>
-            <a href="#" className="text-white hover:text-gray-300 transition-colors">My List</a>
-          </nav>
-
-          {/* Authentication Section */}
-          <div className="flex items-center space-x-4">
-            {isAuthenticated ? (
-              <div className="flex items-center space-x-3">
-                <img 
-                  src={user?.avatar} 
-                  alt={user?.name}
-                  className="w-8 h-8 rounded-full"
-                />
-                <span className="text-white text-sm hidden sm:inline">
-                  {user?.name}
-                </span>
-                <button
-                  onClick={logout}
-                  className="text-gray-400 hover:text-white transition-colors text-sm"
-                >
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="bg-netflix-red hover:bg-red-700 text-white px-4 py-2 rounded font-semibold transition-colors"
-              >
-                Sign In
-              </button>
-            )}
-          </div>
-        </div>
-      </header>
-
-      {/* Login Modal */}
-      <LoginModal 
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
-    </>
-  )
-}
+**Students can examine the current header.js to see advanced patterns like:**
+- Mobile menu state management
+- Search form handling
+- Profile dropdown animations
+- Responsive navigation
 ```
 
 **Teacher explains header updates:**
