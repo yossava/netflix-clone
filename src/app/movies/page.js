@@ -1,7 +1,9 @@
+"use client";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
-import { TvMinimalPlay, Filter, Twitter, Youtube } from "lucide-react";
+import { TvMinimalPlay, Filter, Search } from "lucide-react";
 import MovieCard from "@/components/MovieCard";
+import { useState, useMemo } from "react";
 
 export default function MoviePage() {
   const movies = [
@@ -335,63 +337,138 @@ export default function MoviePage() {
       type: "movie",
     },
   ];
-  const allGenres = [];
-  movies.forEach(
-    movie => {
-      movie.genre.forEach(
-        g => {
-          if (!allGenres.includes(g)){
-            allGenres.push(g);
-          }
+
+  // State management for filters and search
+  const [selectedGenre, setSelectedGenre] = useState("All");
+  const [sortBy, setSortBy] = useState("Release Year");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Extract all unique genres from movies
+  const allGenres = useMemo(() => {
+    const genres = [];
+    movies.forEach((movie) => {
+      movie.genre.forEach((g) => {
+        if (!genres.includes(g)) {
+          genres.push(g);
         }
+      });
+    });
+    return genres.sort();
+  }, [movies]);
+
+  // Filter and sort movies based on user selection
+  const filteredAndSortedMovies = useMemo(() => {
+    let result = [...movies];
+
+    // Filter by search query
+    if (searchQuery) {
+      result = result.filter((movie) =>
+        movie.title.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
-  );
-  console.log(allGenres);
+
+    // Filter by genre
+    if (selectedGenre !== "All") {
+      result = result.filter((movie) => movie.genre.includes(selectedGenre));
+    }
+
+    // Sort movies
+    switch (sortBy) {
+      case "A-Z":
+        result.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case "Z-A":
+        result.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case "Ratings":
+        result.sort((a, b) => b.vote_average - a.vote_average);
+        break;
+      case "Release Year":
+      default:
+        result.sort((a, b) => b.year - a.year);
+        break;
+    }
+
+    return result;
+  }, [movies, selectedGenre, sortBy, searchQuery]);
 
   return (
     <div className="w-full pt-30">
       <Header />
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto px-4">
         <div className="flex gap-2 items-center ml-2">
           <TvMinimalPlay className="h-10 w-10 text-red-600" />
           <h1 className="text-2xl font-bold mb-2">Movies</h1>
         </div>
+
+        {/* Search Bar */}
+        <div className="relative mt-4 mb-4">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search movies..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-gray-900 text-white py-3 pl-12 pr-4 rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 transition-all"
+          />
+        </div>
+
+        {/* Filters Section */}
         <div className="flex flex-col gap-6 items-start text-xl bg-gray-900 p-4 mt-2 rounded-md md:flex-row md:items-center">
           <div className="flex items-center gap-2">
             <Filter className="h-5 w-5" />
             <p>Filters:</p>
           </div>
-          <select className="bg-gray-800 py-3 px-5 w-full md:w-auto">
+          <select
+            value={selectedGenre}
+            onChange={(e) => setSelectedGenre(e.target.value)}
+            className="bg-gray-800 py-3 px-5 w-full md:w-auto rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 cursor-pointer transition-all hover:bg-gray-700"
+          >
             <option value="All">All Genres</option>
-            {
-              allGenres.map(
-                genre =>
-                  (
-                    <option value={genre} key={genre}>{genre}</option>
-                  )
-              )
-            }
+            {allGenres.map((genre) => (
+              <option value={genre} key={genre}>
+                {genre}
+              </option>
+            ))}
           </select>
-          <select className="bg-gray-800 py-3 px-5 w-full md:w-auto">
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="bg-gray-800 py-3 px-5 w-full md:w-auto rounded-md focus:outline-none focus:ring-2 focus:ring-red-600 cursor-pointer transition-all hover:bg-gray-700"
+          >
             <option>Release Year</option>
             <option>A-Z</option>
             <option>Z-A</option>
             <option>Ratings</option>
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-4 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6 ">
-          {movies.map((m) => (
-            <div key={m.id} className="w-full">
-              <MovieCard
-                title={m.title}
-                duration={m.duration}
-                description={m.description}
-                image={m.image}
-                vote_average={m.vote_average}
-              />
+
+        {/* Results Counter */}
+        <div className="mt-4 text-gray-400">
+          Showing {filteredAndSortedMovies.length} of {movies.length} movies
+        </div>
+
+        {/* Movies Grid */}
+        <div className="grid grid-cols-2 gap-3 mt-4 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-6">
+          {filteredAndSortedMovies.length > 0 ? (
+            filteredAndSortedMovies.map((m) => (
+              <div key={m.id} className="w-full">
+                <MovieCard
+                  id={m.id}
+                  title={m.title}
+                  duration={m.duration}
+                  description={m.description}
+                  image={m.image}
+                  vote_average={m.vote_average}
+                />
+              </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-20 text-gray-400">
+              <p className="text-2xl">No movies found</p>
+              <p className="mt-2">Try adjusting your filters or search query</p>
             </div>
-          ))}
+          )}
         </div>
       </div>
       <Footer />
